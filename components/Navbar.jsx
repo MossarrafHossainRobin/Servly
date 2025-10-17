@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
 // Using inline SVGs and <a> tags for environment compatibility.
 
@@ -41,20 +42,32 @@ const customStyles = `
   }
 `;
 
+// Define the refined color palette
+const PRIMARY_COLOR = '#1D3557'; // Deep Navy Blue
+const ACCENT_YELLOW = '#FCD34D'; // Sunny Yellow (for Talent CTA)
+
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [location, setLocation] = useState("Detecting...");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [scrollPosition, setScrollPosition] = useState(0);
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
   const toggleNotifications = () => setNotificationOpen(!notificationOpen);
-  const handleSearch = () => {
-    console.log("Searching for:", searchTerm);
-    // Add navigation logic here
-  };
 
-  // --- Location API (Unchanged) ---
+  // --- Scroll Effect Hook (Unchanged) ---
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollPosition(Math.min(window.scrollY, 300));
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  // --- Location API Hook (Unchanged) ---
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -65,16 +78,23 @@ export default function Navbar() {
               `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
             );
             const data = await res.json();
-            const area =
-              data.address.suburb ||
-              data.address.neighbourhood ||
-              data.address.road ||
-              "";
-            const district =
-              data.address.city || data.address.town || data.address.county || "";
+            
+            const address = data.address;
+            const area = address.suburb || address.neighbourhood || address.road || "";
+            const district = address.city || address.town || address.county || "";
+            const state = address.state || "";
 
-            const locationString = area && district ? `${area}, ${district}` : "Unknown Location";
-
+            let locationString = "Unknown Location";
+            if (area && district) {
+                locationString = `${area}, ${district}`;
+            } else if (district && state) {
+                 locationString = `${district}, ${state}`;
+            } else if (district) {
+                locationString = district;
+            } else {
+                locationString = "Detected Area";
+            }
+            
             setLocation(locationString);
           } catch (err) {
             console.error("Geocoding error:", err);
@@ -92,113 +112,109 @@ export default function Navbar() {
     }
   }, []);
 
-  // Define the primary Red accent color (for Search Bar)
-  const RED_ACCENT_COLOR = '#E63946';
+  // --- Dynamic Style Calculation ---
+  const normalizedScroll = scrollPosition / 300; // Value from 0 to 1
+  
+  // Interpolate the colors and opacity
+  const r1 = 255, g1 = 255, b1 = 255; 
+  const r2 = 248, g2 = 250, b2 = 252; 
+  const opacityStart = 0.95;
+  const opacityEnd = 0.9;
+  const opacity = opacityStart - (opacityStart - opacityEnd) * normalizedScroll;
+
+  const bgColor = `rgba(${r1 + (r2 - r1) * normalizedScroll}, ${g1 + (g2 - g1) * normalizedScroll}, ${b1 + (b2 - b1) * normalizedScroll}, ${opacity})`;
+
+  // Calculate box shadow intensity
+  const shadowOpacity = 0.5 - normalizedScroll * 0.4; 
+  const boxShadow = `0 10px 15px -3px rgba(0, 0, 0, ${shadowOpacity})`;
+
 
   return (
     <>
       <style>{customStyles}</style>
-      <nav className="bg-white/95 backdrop-blur-xl shadow-2xl shadow-blue-500/10 sticky top-0 z-50 border-b border-blue-500/20">
+      {/* NAVBAR CONTAINER: Dynamically styled based on scrollPosition */}
+      <nav 
+        className="backdrop-blur-xl sticky top-0 z-50 border-t-4 transition-all duration-300 ease-out"
+        style={{ 
+          borderColor: PRIMARY_COLOR, 
+          backgroundColor: bgColor, 
+          boxShadow: boxShadow
+        }}
+      >
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            {/* --- Left Section (Logo + Location) --- */}
-            <div className="flex items-center space-x-8">
-              {/* Logo */}
-              <a href="/" className="flex items-center space-x-3 group transition-transform duration-300 hover:scale-[1.02]">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-700 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:shadow-purple-400/50 transition-all duration-300">
-                  <IconTools className="text-white text-xl w-6 h-6" />
+          {/* Main Flex Container: Simplified structure due to search removal */}
+          <div className="flex justify-between items-center h-24"> 
+            
+            {/* --- Left Section (Logo + Location + Links) --- */}
+            {/* The main links are now moved left to center navigation */}
+            <div className="flex items-center space-x-10">
+              
+              {/* Logo (Unchanged) */}
+              <a href="/" className="flex items-center space-x-3 group transition-transform duration-300 hover:scale-[1.05]">
+                <div className="w-14 h-14 bg-gradient-to-br from-blue-700 to-indigo-900 rounded-2xl flex items-center justify-center shadow-2xl shadow-indigo-600/40 group-hover:shadow-indigo-600/60 transition-all duration-300">
+                  <IconTools className="text-white text-2xl w-7 h-7" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent tracking-tight">
+                  <h1 
+                    className="text-4xl font-black bg-gradient-to-r from-blue-700 to-indigo-800 bg-clip-text text-transparent tracking-tighter leading-none"
+                    style={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                  >
                     Servly
                   </h1>
-                  <p className="text-xs text-gray-500 font-medium tracking-wider uppercase">Pro Services Hub</p>
+                  <p className="text-xs text-gray-500 font-bold tracking-[0.2em] uppercase mt-1">
+                    Talent Marketplace
+                  </p>
                 </div>
               </a>
 
-              {/* Location Display - IMPROVED DESIGN */}
-              <div className="hidden lg:flex items-center px-4 py-2 bg-white rounded-full text-sm font-semibold transition-all duration-300 border border-blue-200 hover:border-blue-400 hover:shadow-md cursor-pointer">
+              {/* Location Display - Modern Chip Design (Unchanged) */}
+              <div className="hidden lg:flex items-center px-4 py-2 bg-white rounded-full text-sm font-bold transition-all duration-300 border border-gray-200 hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-100 cursor-pointer">
                 <IconMapMarker
                   className={`mr-2 transition-colors duration-500 w-4 h-4 ${
-                    location.includes("Detecting") || location.includes("denied")
+                    location.includes("Detecting") || location.includes("denied") || location.includes("Error")
                       ? "text-red-500 animate-pulse"
-                      : "text-blue-600"
+                      : "text-indigo-600"
                   }`}
                 />
                 <span className={`${location.includes("Detecting") ? "text-gray-500" : "text-gray-800"}`}>
                   {location}
                 </span>
               </div>
-            </div>
-
-            {/* --- Center Section (Search Bar - WIDER, RED ACCENT) --- */}
-            <div className="flex-1 max-w-2xl hidden lg:block mx-10">
-              <div className="relative w-full rounded-full shadow-2xl border-2 transition-all duration-300 group focus-within:ring-4 focus-within:ring-red-200"
-                   style={{ 
-                     borderColor: RED_ACCENT_COLOR, 
-                     boxShadow: `0 10px 20px -5px rgba(230, 57, 70, 0.3)`
-                   }}>
-                
-                {/* Search Input */}
-                <input
-                  type="text"
-                  placeholder="Find talents or works..." // Confirmed placeholder text
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-6 pr-28 py-3.5 rounded-full bg-white focus:outline-none text-gray-800 placeholder-gray-500 font-medium text-base transition-all duration-300"
-                />
-
-                {/* Search Button (Vibrant Red) */}
-                <button
-                  onClick={handleSearch}
-                  className="absolute right-0 top-0 h-full w-24 flex items-center justify-center rounded-r-full text-white font-semibold transition-all duration-300 hover:w-28 hover:opacity-90"
-                  style={{ background: RED_ACCENT_COLOR, boxShadow: '0 4px 10px rgba(230, 57, 70, 0.5)' }}
-                >
-                  <IconSearch className="text-xl w-5 h-5" />
-                </button>
-
-                {/* Clear Button (Only visible if text exists) */}
-                {searchTerm && (
-                  <button
-                    className="absolute right-24 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-600 transition-colors duration-300 p-2"
-                    onClick={() => setSearchTerm("")}
-                  >
-                    <IconTimes className="text-sm w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* --- Right Section (Icons + Auth) --- */}
-            <div className="flex items-center space-x-3">
-              {/* Desktop Links */}
-              <div className="hidden md:flex items-center space-x-1">
+              
+              {/* Desktop Links - Moved to the left, slightly more prominent */}
+              <div className="hidden lg:flex items-center space-x-2">
                 {["Services", "About", "Contact"].map((item) => (
                   <a
                     key={item}
                     href={`/${item.toLowerCase()}`}
-                    className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-lg text-base font-semibold transition-all duration-300 hover:bg-blue-50"
+                    className="text-gray-700 text-base font-bold transition-all duration-300 relative group px-3 py-2 rounded-lg hover:text-indigo-700 hover:bg-indigo-50"
                   >
                     {item}
+                    <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-[3px] bg-indigo-600 group-hover:w-full transition-all duration-300 rounded-full"></span>
                   </a>
                 ))}
               </div>
-
-              {/* Notification (Unchanged) */}
+            </div>
+            
+            {/* --- Right Section (Icons + Auth) --- */}
+            <div className="flex items-center space-x-5">
+              
+              {/* Notification Icon (Unchanged) */}
               <div className="relative">
                 <button
                   onClick={toggleNotifications}
-                  className="p-3 text-gray-600 hover:text-white bg-gray-100 hover:bg-blue-600 rounded-full transition-all duration-300 shadow-md relative group"
+                  className="p-3 text-gray-700 hover:text-white bg-white hover:bg-indigo-600 rounded-full transition-all duration-300 shadow-lg relative group border border-gray-100"
                 >
-                  <IconBell className="text-lg w-5 h-5 group-hover:animate-pulse" />
-                  <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold border-2 border-white transform scale-90">
+                  <IconBell className="text-xl w-6 h-6 group-hover:scale-110 transition-transform" />
+                  <span className="absolute -top-0.5 -right-0.5 w-6 h-6 bg-red-600 text-white text-xs rounded-full flex items-center justify-center font-bold border-2 border-white transform scale-90">
                     3
                   </span>
                 </button>
 
-                {/* Notification Dropdown */}
+                {/* Notification Dropdown (Unchanged) */}
                 {notificationOpen && (
                   <div className="absolute right-0 mt-3 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 animate-slideDown origin-top-right">
+                    {/* ... Notification content ... */}
                     <div className="p-4 border-b border-gray-100 flex justify-between items-center">
                       <h3 className="font-bold text-xl text-gray-900">Notifications</h3>
                       <span className="text-sm text-blue-500 cursor-pointer hover:text-blue-700">Clear All</span>
@@ -231,28 +247,37 @@ export default function Navbar() {
                 )}
               </div>
 
-              {/* Auth Actions - New button added */}
+              {/* Auth Actions - COMPLEX DESIGN */}
               <div className="hidden md:flex items-center space-x-3">
-                {/* NEW: Talent/Work Signup Button */}
-                <button 
-                  className="bg-yellow-500 text-gray-900 px-4 py-2 rounded-full text-sm font-extrabold shadow-lg hover:bg-yellow-400 transition-all duration-300 hover:scale-[1.03]"
-                  title="Sign up to offer your professional services"
-                >
-                  Sign Up for Talents
-                </button>
+                
+                {/* Login Button - Elevated Style */}
+                <Link href="/Login">
+                  <button
+                    className="text-indigo-700 font-bold px-5 py-2 rounded-xl text-sm transition-all duration-300 bg-white border-2 border-indigo-200 shadow-lg hover:shadow-xl hover:scale-[1.02] hover:bg-indigo-50"
+                    title="Login to your account"
+                  >
+                    Sign In
+                  </button>
+                </Link>
 
-                <button className="text-gray-700 hover:text-blue-600 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 hover:bg-blue-50">
-                  Login
-                </button>
-                <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-full text-sm font-bold shadow-xl shadow-purple-500/40 hover:opacity-95 transition-all duration-300 hover:scale-[1.03]">
-                  Sign Up (Customer)
-                </button>
+                {/* Talent Signup Button - Secondary CTA with ACCENT_YELLOW */}
+                <Link href="/Register">
+                  <button
+                    className="text-gray-900 px-5 py-2 rounded-xl text-sm font-extrabold shadow-md transition-all duration-300 hover:scale-[1.02] border-2 border-transparent hover:border-gray-500"
+                    style={{ backgroundColor: ACCENT_YELLOW }}
+                    title="Sign up to offer your professional services"
+                  >
+                    Sign Up 
+                  </button>
+                </Link>
+
+              
               </div>
 
               {/* Mobile Menu Toggle */}
               <button
                 onClick={toggleMobileMenu}
-                className="md:hidden p-3 text-gray-700 hover:text-white hover:bg-blue-600 rounded-full transition-all duration-300"
+                className="md:hidden p-3 text-gray-700 hover:text-white hover:bg-indigo-600 rounded-full transition-all duration-300"
               >
                 {mobileMenuOpen ? <IconTimes className="text-xl w-5 h-5" /> : <IconBars className="text-xl w-5 h-5" />}
               </button>
@@ -260,24 +285,15 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Menu (Updated with new button) */}
+        {/* Mobile Menu (Updated structure) */}
         {mobileMenuOpen && (
           <div className="md:hidden bg-white border-t border-gray-200 shadow-inner animate-slideDown">
             <div className="px-4 py-5 space-y-4">
-              {/* Mobile Search Bar */}
-              <div className="relative w-full">
-                <input
-                  type="text"
-                  placeholder="Find services..."
-                  className="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 shadow-inner text-base"
-                />
-                <IconSearch className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              </div>
 
               {/* Mobile Location Display */}
-              <div className="flex items-center px-4 py-2 bg-gray-100 rounded-xl text-sm font-medium">
-                <IconMapMarker className="mr-2 text-blue-500 w-4 h-4" />
-                <span className="text-gray-700">{location}</span>
+              <div className="flex items-center px-4 py-2 bg-indigo-50 rounded-xl text-sm font-medium border border-indigo-200">
+                <IconMapMarker className="mr-2 text-indigo-600 w-4 h-4" />
+                <span className="text-gray-800">{location}</span>
               </div>
               
               {/* Mobile Links */}
@@ -292,18 +308,19 @@ export default function Navbar() {
                 </a>
               ))}
               
-              {/* Mobile Auth Actions */}
+              {/* Mobile Auth Actions - Updated Buttons */}
               <div className="pt-4 border-t border-gray-100 space-y-3">
+                 <button className="w-full text-center text-lg text-indigo-700 hover:bg-indigo-50 py-3 rounded-xl font-bold transition-all duration-300 border-2 border-indigo-300">
+                  Login
+                </button>
                  <button 
-                  className="w-full bg-yellow-500 text-gray-900 py-3 rounded-xl text-lg font-bold shadow-lg hover:opacity-90 transition-all duration-300"
+                  className="w-full text-gray-900 py-3 rounded-xl text-lg font-bold shadow-lg hover:opacity-90 transition-all duration-300"
+                  style={{ backgroundColor: ACCENT_YELLOW }}
                 >
                   Sign Up for Talents
                 </button>
-                <button className="w-full text-center text-lg text-blue-600 hover:bg-blue-50 py-2 rounded-xl font-semibold transition-all duration-300">
-                  Login
-                </button>
-                <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl text-lg font-bold shadow-lg hover:opacity-90 transition-all duration-300">
-                  Sign Up (Customer)
+                <button className="w-full bg-gradient-to-r from-blue-700 to-indigo-800 text-white py-3 rounded-xl text-lg font-bold shadow-xl shadow-indigo-500/50 hover:opacity-90 transition-all duration-300">
+                  Register (Customer)
                 </button>
               </div>
             </div>
@@ -314,7 +331,7 @@ export default function Navbar() {
   );
 }
 
-// Separate component for cleaner notification item rendering
+// Separate component for cleaner notification item rendering (Unchanged)
 const NotificationItem = ({ Icon, iconBg, iconColor, title, text, time }) => (
   <div className="p-4 hover:bg-gray-50 border-b border-gray-50 cursor-pointer flex items-start space-x-3 transition-colors duration-150">
     <div className={`w-9 h-9 ${iconBg} rounded-full flex items-center justify-center flex-shrink-0`}>
